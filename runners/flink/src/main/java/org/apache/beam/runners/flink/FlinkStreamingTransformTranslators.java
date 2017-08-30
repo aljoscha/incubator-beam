@@ -19,6 +19,7 @@
 package org.apache.beam.runners.flink;
 
 import com.google.common.collect.Maps;
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -29,9 +30,12 @@ import java.util.Map;
 import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems;
 import org.apache.beam.runners.core.SystemReduceFn;
+import org.apache.beam.runners.core.construction.PTransformTranslation;
+import org.apache.beam.runners.core.construction.SdkComponents;
 import org.apache.beam.runners.flink.translation.functions.FlinkAssignWindows;
 import org.apache.beam.runners.flink.translation.types.CoderTypeInformation;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.DoFnOperator;
+import org.apache.beam.runners.flink.translation.wrappers.streaming.FnApiDoFnOperator;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.KvToByteBufferKeySelector;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.SingletonKeyedWorkItem;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.SingletonKeyedWorkItemCoder;
@@ -45,7 +49,9 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
+import org.apache.beam.sdk.common.runner.v1.RunnerApi;
 import org.apache.beam.sdk.io.Read;
+import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
@@ -504,6 +510,19 @@ class FlinkStreamingTransformTranslators {
         ParDo.MultiOutput<InputT, OutputT> transform,
         FlinkStreamingTranslationContext context) {
 
+      AppliedPTransform<?, ?, ?> appliedPTransform = context.getCurrentTransform();
+
+      final SdkComponents sdkComponents = SdkComponents.create();
+      RunnerApi.PTransform nonFinalPTransform = null;
+
+      try {
+        nonFinalPTransform = PTransformTranslation.toProto(appliedPTransform, sdkComponents);
+      } catch (IOException e) {
+        e.printStackTrace();
+      }
+
+      final RunnerApi.PTransform pTransform = nonFinalPTransform;
+
       ParDoTranslationHelper.translateParDo(
           transform.getName(),
           transform.getFn(),
@@ -529,7 +548,7 @@ class FlinkStreamingTransformTranslators {
                 Coder<WindowedValue<InputT>> inputCoder,
                 Coder keyCoder,
                 Map<Integer, PCollectionView<?>> transformedSideInputs) {
-              return new DoFnOperator<>(
+              return new FnApiDoFnOperator<>(
                   doFn,
                   stepName,
                   inputCoder,
@@ -541,7 +560,9 @@ class FlinkStreamingTransformTranslators {
                   transformedSideInputs,
                   sideInputs,
                   context.getPipelineOptions(),
-                  keyCoder);
+                  keyCoder,
+                  pTransform,
+                  context.getPipeline());
             }
           });
     }

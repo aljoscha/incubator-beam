@@ -378,5 +378,10 @@
       <scope>test</scope>
     </dependency>
 
+    <dependency>
+      <groupId>org.apache.beam</groupId>
+      <artifactId>beam-sdks-java-harness</artifactId>
+    </dependency>
+
   </dependencies>
 </project>

@@ -95,7 +95,7 @@ class FlinkPipelineExecutionEnvironment {
     FlinkPipelineTranslator translator;
     if (translationMode == TranslationMode.STREAMING) {
       this.flinkStreamEnv = createStreamExecutionEnvironment();
-      translator = new FlinkStreamingPipelineTranslator(flinkRunner, flinkStreamEnv, options);
+      translator = new FlinkStreamingPipelineTranslator(flinkRunner, flinkStreamEnv, options, pipeline);
     } else {
       this.flinkBatchEnv = createBatchExecutionEnvironment();
       translator = new FlinkBatchPipelineTranslator(flinkBatchEnv, options);

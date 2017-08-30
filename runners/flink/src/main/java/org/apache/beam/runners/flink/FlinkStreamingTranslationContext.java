@@ -25,6 +25,7 @@ import java.util.Map;
 import org.apache.beam.runners.core.construction.TransformInputs;
 import org.apache.beam.runners.flink.translation.types.CoderTypeInformation;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.common.runner.v1.RunnerApi;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -47,6 +48,8 @@ class FlinkStreamingTranslationContext {
   private final StreamExecutionEnvironment env;
   private final PipelineOptions options;
 
+  private final RunnerApi.Pipeline pipeline;
+
   /**
    * Keeps a mapping between the output value of the PTransform (in Dataflow) and the
    * Flink Operator that produced it, after the translation of the correspondinf PTransform
@@ -56,10 +59,11 @@ class FlinkStreamingTranslationContext {
 
   private AppliedPTransform<?, ?, ?> currentTransform;
 
-  public FlinkStreamingTranslationContext(StreamExecutionEnvironment env, PipelineOptions options) {
+  public FlinkStreamingTranslationContext(StreamExecutionEnvironment env, PipelineOptions options, RunnerApi.Pipeline pipeline) {
     this.env = checkNotNull(env);
     this.options = checkNotNull(options);
     this.dataStreams = new HashMap<>();
+    this.pipeline = pipeline;
   }
 
   public StreamExecutionEnvironment getExecutionEnvironment() {
@@ -79,6 +83,10 @@ class FlinkStreamingTranslationContext {
     if (!dataStreams.containsKey(value)) {
       dataStreams.put(value, set);
     }
+  }
+
+  public RunnerApi.Pipeline getPipeline() {
+    return pipeline;
   }
 
   /**

@@ -150,7 +150,7 @@ public class DoFnOperator<InputT, OutputT>
 
   private final String stepName;
 
-  private final Coder<WindowedValue<InputT>> inputCoder;
+  protected final Coder<WindowedValue<InputT>> inputCoder;
 
   private final Coder<?> keyCoder;
 
@@ -276,14 +276,14 @@ public class DoFnOperator<InputT, OutputT>
 
     StepContext stepContext = new FlinkStepContext();
 
-    doFnRunner = DoFnRunners.simpleRunner(
+    doFnRunner = createDoFnRunner(
         options,
+        stepContext,
         doFn,
         sideInputReader,
         outputManager,
         mainOutputTag,
         additionalOutputTags,
-        stepContext,
         windowingStrategy);
 
     if (doFn instanceof GroupAlsoByWindowViaWindowSetNewDoFn) {
@@ -342,6 +342,26 @@ public class DoFnOperator<InputT, OutputT>
 
     pushbackDoFnRunner =
         SimplePushbackSideInputDoFnRunner.create(doFnRunner, sideInputs, sideInputHandler);
+  }
+
+  protected DoFnRunner<InputT, OutputT> createDoFnRunner(
+      FlinkPipelineOptions options,
+      StepContext stepContext,
+      DoFn<InputT, OutputT> doFn,
+      SideInputReader sideInputReader,
+      BufferedOutputManager<OutputT> outputManager,
+      TupleTag<OutputT> mainOutputTag,
+      List<TupleTag<?>> additionalOutputTags,
+      WindowingStrategy<?, ?> windowingStrategy) {
+    return DoFnRunners.simpleRunner(
+        options,
+        doFn,
+        sideInputReader,
+        outputManager,
+        mainOutputTag,
+        additionalOutputTags,
+        stepContext,
+        windowingStrategy);
   }
 
   @Override

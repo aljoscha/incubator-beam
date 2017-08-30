@@ -19,6 +19,7 @@ package org.apache.beam.runners.flink;
 
 import java.util.Map;
 import org.apache.beam.runners.core.construction.PTransformReplacements;
+import org.apache.beam.runners.core.construction.PipelineTranslation;
 import org.apache.beam.runners.core.construction.ReplacementOutputs;
 import org.apache.beam.runners.core.construction.SplittableParDo;
 import org.apache.beam.runners.core.construction.UnconsumedReads;
@@ -57,8 +58,9 @@ class FlinkStreamingPipelineTranslator extends FlinkPipelineTranslator {
   public FlinkStreamingPipelineTranslator(
       FlinkRunner flinkRunner,
       StreamExecutionEnvironment env,
-      PipelineOptions options) {
-    this.streamingContext = new FlinkStreamingTranslationContext(env, options);
+      PipelineOptions options,
+      Pipeline pipeline) {
+    this.streamingContext = new FlinkStreamingTranslationContext(env, options, PipelineTranslation.toProto(pipeline));
     this.flinkRunner = flinkRunner;
   }
 
