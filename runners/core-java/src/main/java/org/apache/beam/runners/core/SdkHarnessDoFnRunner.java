@@ -19,8 +19,11 @@ package org.apache.beam.runners.core;
 
 import static com.google.common.base.Preconditions.checkState;
 
+import java.io.IOException;
 import java.util.concurrent.ExecutionException;
 import javax.annotation.Nullable;
+import org.apache.beam.fn.v1.BeamFnApi;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.UserCodeException;
@@ -32,15 +35,24 @@ public class SdkHarnessDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT,
 
   private final SdkHarnessClient sdkHarnessClient;
   private final String processBundleDescriptorId;
+  private final String sourceReference;
+  private final String sourceName;
+  private final Coder<WindowedValue<InputT>> inputCoder;
 
   /** {@code null} between bundles. */
   @Nullable private SdkHarnessClient.ActiveBundle activeBundle;
 
   private SdkHarnessDoFnRunner(
       SdkHarnessClient sdkHarnessClient,
-      String processBundleDescriptorId) {
+      String processBundleDescriptorId,
+      String sourceReference,
+      String sourceName,
+      Coder<WindowedValue<InputT>> inputCoder) {
     this.sdkHarnessClient = sdkHarnessClient;
     this.processBundleDescriptorId = processBundleDescriptorId;
+    this.sourceReference = sourceReference;
+    this.sourceName = sourceName;
+    this.inputCoder = inputCoder;
   }
 
   /**
@@ -56,14 +68,23 @@ public class SdkHarnessDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT,
    */
   public static <InputT, OutputT> SdkHarnessDoFnRunner<InputT, OutputT> create(
       SdkHarnessClient sdkHarnessClient,
-      String processBundleDescriptorId) {
-    return new SdkHarnessDoFnRunner(sdkHarnessClient, processBundleDescriptorId);
+      String processBundleDescriptorId,
+      String sourceReference,
+      String sourceName,
+      Coder<WindowedValue<InputT>> inputCoder) {
+    return new SdkHarnessDoFnRunner<>(
+        sdkHarnessClient,
+        processBundleDescriptorId,
+        sourceReference,
+        sourceName,
+        inputCoder);
   }
 
   @Override
   public void startBundle() {
     this.activeBundle =
-        sdkHarnessClient.newBundle(processBundleDescriptorId);
+        sdkHarnessClient.newBundle(
+            processBundleDescriptorId, sourceReference, sourceName, inputCoder);
   }
 
   @Override

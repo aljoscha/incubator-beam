@@ -21,10 +21,11 @@ import com.google.auto.value.AutoValue;
 import com.google.common.base.Function;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
-import java.io.IOException;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicLong;
 import org.apache.beam.fn.v1.BeamFnApi;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.util.WindowedValue;
 
 /**
  * A high-level client for an SDK harness.
@@ -74,12 +75,15 @@ public class SdkHarnessClient {
 
   private final IdGenerator idGenerator;
   private final FnApiControlClient fnApiControlClient;
+  private final FnDataService dataService;
 
   private SdkHarnessClient(
       FnApiControlClient fnApiControlClient,
+      FnDataService dataService,
       IdGenerator idGenerator) {
     this.idGenerator = idGenerator;
     this.fnApiControlClient = fnApiControlClient;
+    this.dataService = dataService;
   }
 
   /**
@@ -87,12 +91,14 @@ public class SdkHarnessClient {
    * that these correspond to the same SDK harness, so control plane and data plane messages can be
    * correctly associated.
    */
-  public static SdkHarnessClient usingFnApiClient(FnApiControlClient fnApiControlClient) {
-    return new SdkHarnessClient(fnApiControlClient, new CountingIdGenerator());
+  public static SdkHarnessClient usingFnApiClient(
+      FnApiControlClient fnApiControlClient,
+      FnDataService dataService) {
+    return new SdkHarnessClient(fnApiControlClient, dataService, new CountingIdGenerator());
   }
 
   public SdkHarnessClient withIdGenerator(IdGenerator idGenerator) {
-    return new SdkHarnessClient(fnApiControlClient, idGenerator);
+    return new SdkHarnessClient(fnApiControlClient, dataService, idGenerator);
   }
 
   /**
@@ -133,21 +139,26 @@ public class SdkHarnessClient {
    * <p>The input channels for the returned {@link ActiveBundle} are derived from the
    * instructions in the {@link org.apache.beam.fn.v1.BeamFnApi.ProcessBundleDescriptor}.
    */
-  public ActiveBundle newBundle(String processBundleDescriptorId) {
+  public <T> ActiveBundle newBundle(
+      String processBundleDescriptorId,
+      String sourceReference,
+      String sourceName,
+      Coder<WindowedValue<T>> coder) {
     String bundleId = idGenerator.getId();
 
-    // TODO: acquire an input receiver from appropriate FnDataService
-    FnDataReceiver dataReceiver = new FnDataReceiver() {
-      @Override
-      public void accept(Object input) throws Exception {
-        throw new UnsupportedOperationException("Placeholder FnDataReceiver cannot accept data.");
-      }
+    FnDataService.LogicalEndpoint endpoint = FnDataService.LogicalEndpoint.of(
+        bundleId,
+        BeamFnApi.Target.newBuilder()
+            .setPrimitiveTransformReference(sourceReference)
+            .setName(sourceName)
+            .build());
 
-      @Override
-      public void close() throws IOException {
-        // noop
-      }
-    };
+    FnDataReceiver dataReceiver;
+    try {
+      dataReceiver = dataService.send(endpoint, (Coder) coder);
+    } catch (Exception e) {
+      throw new RuntimeException("Error creating data client.", e);
+    }
 
     ListenableFuture<BeamFnApi.InstructionResponse> genericResponse =
         fnApiControlClient.handle(

@@ -24,6 +24,9 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.SettableFuture;
 import java.util.concurrent.Future;
 import org.apache.beam.fn.v1.BeamFnApi;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.VoidCoder;
+import org.apache.beam.sdk.util.WindowedValue;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -36,13 +39,15 @@ import org.mockito.MockitoAnnotations;
 public class SdkHarnessClientTest {
 
   @Mock public FnApiControlClient fnApiControlClient;
+  @Mock public FnDataService fnApiDataService;
+  @Mock public FnDataReceiver fnApiDataReceiver;
 
   private SdkHarnessClient sdkHarnessClient;
 
   @Before
   public void setup() {
     MockitoAnnotations.initMocks(this);
-    sdkHarnessClient = SdkHarnessClient.usingFnApiClient(fnApiControlClient);
+    sdkHarnessClient = SdkHarnessClient.usingFnApiClient(fnApiControlClient, fnApiDataService);
   }
 
   @Test
@@ -80,7 +85,14 @@ public class SdkHarnessClientTest {
     when(fnApiControlClient.handle(any(BeamFnApi.InstructionRequest.class)))
         .thenReturn(processBundleResponseFuture);
 
-    SdkHarnessClient.ActiveBundle activeBundle = sdkHarnessClient.newBundle(descriptorId1);
+    when(fnApiDataService.send(any(FnDataService.LogicalEndpoint.class), any(Coder.class)))
+        .thenReturn(fnApiDataReceiver);
+
+    SdkHarnessClient.ActiveBundle activeBundle = sdkHarnessClient.newBundle(
+        descriptorId1,
+        "source_id",
+        "source_name",
+        WindowedValue.getValueOnlyCoder(VoidCoder.of()));
 
     // Correlating the ProcessBundleRequest and ProcessBundleReponse is owned by the underlying
     // FnApiControlClient. The SdkHarnessClient owns just wrapping the request and unwrapping

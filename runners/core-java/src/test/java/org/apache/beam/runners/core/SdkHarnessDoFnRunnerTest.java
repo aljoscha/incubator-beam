@@ -18,12 +18,16 @@
 package org.apache.beam.runners.core;
 
 import static org.junit.Assert.fail;
+import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.when;
 
 import com.google.common.util.concurrent.SettableFuture;
 import java.io.IOException;
 import org.apache.beam.fn.v1.BeamFnApi;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.VoidCoder;
+import org.apache.beam.sdk.util.WindowedValue;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -46,7 +50,12 @@ public class SdkHarnessDoFnRunnerTest {
     String processBundleDescriptorId = "testDescriptor";
     String bundleId = "testBundle";
     SdkHarnessDoFnRunner<Void, Void> underTest =
-        SdkHarnessDoFnRunner.<Void, Void>create(mockClient, processBundleDescriptorId);
+        SdkHarnessDoFnRunner.<Void, Void>create(
+            mockClient,
+            processBundleDescriptorId,
+            "source_reference",
+            "source_name",
+            WindowedValue.getValueOnlyCoder(VoidCoder.of()));
 
     SettableFuture<BeamFnApi.InstructionResponse> processBundleResponseFuture =
         SettableFuture.create();
@@ -65,7 +74,9 @@ public class SdkHarnessDoFnRunnerTest {
         SdkHarnessClient.ActiveBundle.create(
             bundleId, processBundleResponseFuture, dummyInputReceiver);
 
-    when(mockClient.newBundle(anyString())).thenReturn(activeBundle);
+    when(mockClient.newBundle(anyString(), anyString(), anyString(), any(Coder.class)))
+        .thenReturn(activeBundle);
+
     underTest.startBundle();
     processBundleResponseFuture.set(BeamFnApi.InstructionResponse.getDefaultInstance());
     underTest.finishBundle();
