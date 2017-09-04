@@ -60,13 +60,13 @@ public class SdkHarnessClient {
   public abstract static class ActiveBundle<InputT> {
     public abstract String getBundleId();
 
-    public abstract Future<BeamFnApi.ProcessBundleResponse> getBundleResponse();
+    public abstract Future<BeamFnApi.InstructionResponse> getBundleResponse();
 
     public abstract FnDataReceiver<InputT> getInputReceiver();
 
     public static <InputT> ActiveBundle<InputT> create(
         String bundleId,
-        Future<BeamFnApi.ProcessBundleResponse> response,
+        Future<BeamFnApi.InstructionResponse> response,
         FnDataReceiver<InputT> dataReceiver) {
       return new AutoValue_SdkHarnessClient_ActiveBundle(bundleId, response, dataReceiver);
     }
@@ -157,16 +157,6 @@ public class SdkHarnessClient {
                         .setProcessBundleDescriptorReference(processBundleDescriptorId))
                 .build());
 
-    ListenableFuture<BeamFnApi.ProcessBundleResponse> specificResponse =
-        Futures.transform(
-            genericResponse,
-            new Function<BeamFnApi.InstructionResponse, BeamFnApi.ProcessBundleResponse>() {
-              @Override
-              public BeamFnApi.ProcessBundleResponse apply(BeamFnApi.InstructionResponse input) {
-                return input.getProcessBundle();
-              }
-            });
-
-    return ActiveBundle.create(bundleId, specificResponse, dataReceiver);
+    return ActiveBundle.create(bundleId, genericResponse, dataReceiver);
   }
 }

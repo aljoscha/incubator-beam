@@ -48,7 +48,7 @@ public class SdkHarnessDoFnRunnerTest {
     SdkHarnessDoFnRunner<Void, Void> underTest =
         SdkHarnessDoFnRunner.<Void, Void>create(mockClient, processBundleDescriptorId);
 
-    SettableFuture<BeamFnApi.ProcessBundleResponse> processBundleResponseFuture =
+    SettableFuture<BeamFnApi.InstructionResponse> processBundleResponseFuture =
         SettableFuture.create();
     FnDataReceiver dummyInputReceiver = new FnDataReceiver() {
       @Override
@@ -67,7 +67,7 @@ public class SdkHarnessDoFnRunnerTest {
 
     when(mockClient.newBundle(anyString())).thenReturn(activeBundle);
     underTest.startBundle();
-    processBundleResponseFuture.set(BeamFnApi.ProcessBundleResponse.getDefaultInstance());
+    processBundleResponseFuture.set(BeamFnApi.InstructionResponse.getDefaultInstance());
     underTest.finishBundle();
   }
 }
