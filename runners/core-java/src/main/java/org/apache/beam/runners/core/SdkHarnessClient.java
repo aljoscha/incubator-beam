@@ -152,6 +152,7 @@ public class SdkHarnessClient {
     ListenableFuture<BeamFnApi.InstructionResponse> genericResponse =
         fnApiControlClient.handle(
             BeamFnApi.InstructionRequest.newBuilder()
+                .setInstructionId(bundleId)
                 .setProcessBundle(
                     BeamFnApi.ProcessBundleRequest.newBuilder()
                         .setProcessBundleDescriptorReference(processBundleDescriptorId))
