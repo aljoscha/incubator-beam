@@ -157,7 +157,7 @@ public class PTransformTranslation {
    *
    * <p>Does not register the {@code appliedPTransform} within the provided {@link SdkComponents}.
    */
-  static RunnerApi.PTransform toProto(
+  public static RunnerApi.PTransform toProto(
       AppliedPTransform<?, ?, ?> appliedPTransform, SdkComponents components) throws IOException {
     return toProto(
         appliedPTransform, Collections.<AppliedPTransform<?, ?, ?>>emptyList(), components);
