@@ -110,12 +110,20 @@ public class SdkHarnessDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT,
   @Override
   public void finishBundle() {
     try {
-      activeBundle.getBundleResponse().get();
+      activeBundle.getInputReceiver().close();
+      BeamFnApi.InstructionResponse response =
+          (BeamFnApi.InstructionResponse) activeBundle.getBundleResponse().get();
+
+      if (response.getError() != null && response.getError().length() > 0) {
+        throw new RuntimeException("Error finishing bundle: " + response.getError());
+      }
     } catch (InterruptedException interrupted) {
       Thread.interrupted();
       return;
     } catch (ExecutionException exc) {
       throw UserCodeException.wrap(exc);
+    } catch (IOException e) {
+      throw new RuntimeException("Error finishing bundle.", e);
     }
   }
 }
