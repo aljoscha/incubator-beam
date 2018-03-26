@@ -48,10 +48,7 @@ public class Environments {
 
   private static final EnvironmentIdExtractor DEFAULT_SPEC_EXTRACTOR = (transform) -> null;
 
-  private static final String JAVA_SDK_HARNESS_CONTAINER_URL =
-      String.format(
-          "%s-%s",
-          ReleaseInfo.getReleaseInfo().getName(), ReleaseInfo.getReleaseInfo().getVersion());
+  private static final String JAVA_SDK_HARNESS_CONTAINER_URL = "aljoscha-docker-apache.bintray.io/beam/java";
   public static final Environment JAVA_SDK_HARNESS_ENVIRONMENT =
       Environment.newBuilder().setUrl(JAVA_SDK_HARNESS_CONTAINER_URL).build();
 

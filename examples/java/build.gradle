@@ -64,6 +64,7 @@ dependencies {
   shadow library.java.joda_time
   shadow library.java.slf4j_api
   shadow project(path: ":runners:direct-java", configuration: "shadow")
+  shadow project(path: ":runners:reference:java")
   shadow library.java.slf4j_jdk14
   shadowTest project(":sdks:java:io:google-cloud-platform").sourceSets.test.output
   shadowTest library.java.hamcrest_core

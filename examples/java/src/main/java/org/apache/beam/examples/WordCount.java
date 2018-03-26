@@ -19,7 +19,6 @@ package org.apache.beam.examples;
 
 import org.apache.beam.examples.common.ExampleUtils;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.metrics.Metrics;
@@ -30,12 +29,16 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.Validation.Required;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.Impulse;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.TypeDescriptors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * An example that counts words in Shakespeare and includes Beam best practices.
@@ -81,6 +84,9 @@ import org.apache.beam.sdk.values.PCollection;
  * by William Shakespeare. You can override it and choose your own input with {@code --inputFile}.
  */
 public class WordCount {
+
+  private static final Logger LOG = LoggerFactory.getLogger(WordCount.class);
+
 
   /**
    * Concept #2: You can make your pipeline assembly code less verbose by defining your DoFns
@@ -177,17 +183,22 @@ public class WordCount {
 
     // Concepts #2 and #3: Our pipeline applies the composite CountWords transform, and passes the
     // static FormatAsTextFn() to the ParDo transform.
-    p.apply("ReadLines", TextIO.read().from(options.getInputFile()))
-     .apply(new CountWords())
-     .apply(MapElements.via(new FormatAsTextFn()))
-     .apply("WriteCounts", TextIO.write().to(options.getOutput()));
+    p
+      .apply(Impulse.create())
+      .apply(MapElements.into(TypeDescriptors.strings()).via((in) -> "Hello"))
+      .apply(ParDo.of(new DoFn<String, Void>() {
 
-    p.run().waitUntilFinish();
+        @ProcessElement
+        public void process(ProcessContext c) {
+          LOG.info("GOT " + c.element());
+        }
+      }));
+
+    p.run();
   }
 
   public static void main(String[] args) {
-    WordCountOptions options = PipelineOptionsFactory.fromArgs(args).withValidation()
-      .as(WordCountOptions.class);
+    WordCountOptions options = PipelineOptionsFactory.fromArgs(args).as(WordCountOptions.class);
 
     runWordCount(options);
   }

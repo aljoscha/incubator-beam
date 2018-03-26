@@ -87,7 +87,7 @@ public class ArtifactServiceStager {
     this.bufferSize = bufferSize;
   }
 
-  public void stage(Iterable<File> files) throws IOException, InterruptedException {
+  public String stage(Iterable<File> files) throws IOException, InterruptedException {
     final Map<File, CompletionStage<ArtifactMetadata>> futures = new HashMap<>();
     for (File file : files) {
       futures.put(file, MoreFutures.supplyAsync(new StagingCallable(file), executorService));
@@ -95,18 +95,18 @@ public class ArtifactServiceStager {
     CompletionStage<StagingResult> stagingResult =
         MoreFutures.allAsList(futures.values())
             .thenApply(ignored -> new ExtractStagingResultsCallable(futures).call());
-    stageManifest(stagingResult);
+    return stageManifest(stagingResult);
   }
 
-  private void stageManifest(CompletionStage<StagingResult> stagingFuture)
+  private String stageManifest(CompletionStage<StagingResult> stagingFuture)
       throws InterruptedException {
     try {
       StagingResult stagingResult = MoreFutures.get(stagingFuture);
       if (stagingResult.isSuccess()) {
         Manifest manifest =
             Manifest.newBuilder().addAllArtifact(stagingResult.getMetadata()).build();
-        blockingStub.commitManifest(
-            CommitManifestRequest.newBuilder().setManifest(manifest).build());
+        return blockingStub.commitManifest(
+            CommitManifestRequest.newBuilder().setManifest(manifest).build()).getStagingToken();
       } else {
         RuntimeException failure =
             new RuntimeException(

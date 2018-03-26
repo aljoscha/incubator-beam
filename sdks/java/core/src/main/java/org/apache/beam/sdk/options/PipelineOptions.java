@@ -24,6 +24,7 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.google.auto.service.AutoService;
 import com.google.common.base.MoreObjects;
 import java.lang.reflect.Proxy;
+import java.util.List;
 import java.util.Map;
 import java.util.ServiceLoader;
 import java.util.concurrent.ThreadLocalRandom;
@@ -392,4 +393,17 @@ public interface PipelineOptions extends HasDisplayData {
       return String.format("%s/%s", info.getName(), info.getVersion()).replace(" ", "_");
     }
   }
+
+  /**
+   * List of local files to make available to workers.
+   *
+   * <p>Files are placed on the worker's classpath.
+   *
+   * <p>The default value is the list of jars from the main program's classpath.
+   */
+  @Description("Files to stage on GCS and make available to workers. "
+      + "Files are placed on the worker's classpath. "
+      + "The default value is all files from the classpath.")
+  List<String> getFilesToStage();
+  void setFilesToStage(List<String> value);
 }

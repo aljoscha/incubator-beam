@@ -24,6 +24,7 @@ description = "Apache Beam :: Runners :: Reference :: Java"
 dependencies {
   shadow project(path: ":model:pipeline", configuration: "shadow")
   shadow project(path: ":runners:core-construction-java", configuration: "shadow")
+  shadow project(path: ":sdks:java:fn-execution")
   shadow library.java.slf4j_api
   testCompile library.java.junit
   testCompile library.java.hamcrest_core
