@@ -20,6 +20,7 @@ package org.apache.beam.runners.core.construction.graph;
 
 import static com.google.common.collect.Iterables.getOnlyElement;
 import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.emptyIterable;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItem;
@@ -683,13 +684,14 @@ public class GreedyStageFuserTest {
             .putOutputs("out", "parDo.out")
             .build();
 
+    PCollection parDoOutput = PCollection.newBuilder().setUniqueName("parDo.out").build();
     QueryablePipeline p =
         QueryablePipeline.forPrimitivesIn(
             partialComponents
                 .toBuilder()
                 .putTransforms("parDo", parDoTransform)
                 .putPcollections(
-                    "parDo.out", PCollection.newBuilder().setUniqueName("parDo.out").build())
+                    "parDo.out", parDoOutput)
                 .putTransforms(
                     "window",
                     PTransform.newBuilder()
@@ -711,7 +713,9 @@ public class GreedyStageFuserTest {
     ExecutableStage subgraph =
         GreedyStageFuser.forGrpcPortRead(
             p, impulseOutputNode, p.getPerElementConsumers(impulseOutputNode));
-    assertThat(subgraph.getOutputPCollections(), emptyIterable());
+    assertThat(subgraph.getOutputPCollections(),
+        containsInAnyOrder(PipelineNode.pCollection("parDo.out", parDoOutput)));
+    assertThat(subgraph.getInputPCollection(), equalTo(impulseOutputNode));
     assertThat(subgraph.getInputPCollection(), equalTo(impulseOutputNode));
     assertThat(subgraph.getEnvironment(), equalTo(env));
     assertThat(

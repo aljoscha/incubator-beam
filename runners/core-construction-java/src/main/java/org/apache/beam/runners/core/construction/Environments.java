@@ -32,7 +32,6 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ParDoPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ReadPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.WindowIntoPayload;
-import org.apache.beam.sdk.util.ReleaseInfo;
 
 /**
  * Utilities for interacting with portability {@link Environment environments}.

@@ -24,9 +24,10 @@ import io.grpc.ManagedChannel;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import org.apache.beam.model.jobmanagement.v1.JobApi.PrepareJobRequest;
@@ -39,26 +40,16 @@ import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.runners.core.construction.ArtifactServiceStager;
 import org.apache.beam.runners.core.construction.JavaReadViaImpulse;
-import org.apache.beam.runners.core.construction.PTransformMatchers;
 import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
-import org.apache.beam.runners.core.construction.ReplacementOutputs;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.fn.channel.ManagedChannelFactory;
-import org.apache.beam.sdk.io.Read;
-import org.apache.beam.sdk.io.Read.Bounded;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.PTransformOverride;
-import org.apache.beam.sdk.runners.PTransformOverrideFactory;
 import org.apache.beam.sdk.util.ZipFiles;
-import org.apache.beam.sdk.values.PBegin;
-import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PValue;
-import org.apache.beam.sdk.values.TupleTag;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -102,8 +93,8 @@ public class PortableRunner extends PipelineRunner<PipelineResult> {
     this.options = options;
   }
 
-  private Set<String> replaceDirectoriesWithZipFiles(List<String> paths) throws IOException {
-    Set<String> results = new HashSet<>();
+  private List<String> replaceDirectoriesWithZipFiles(List<String> paths) throws IOException {
+    List<String> results = new ArrayList<>();
     for (String path : paths) {
       File file = new File(path);
       if (file.exists()) {
@@ -127,12 +118,20 @@ public class PortableRunner extends PipelineRunner<PipelineResult> {
 
     LOG.info("Initial files to stage: " + options.getFilesToStage());
 
-    // TODO: Remove duplicates else where.
-    Set<String> filesToStage;
+    // Use a hashset to deduplicate same file names.
+    // TODO: Migrate to using unique names for each resource if the resource names are duplicated
+    // but in different paths.
+    List<String> filesToStage = new ArrayList<>();
+    Set<String> filesToStageSet = new HashSet<>();
+    for (String file : options.getFilesToStage()) {
+      if (filesToStageSet.add(new File(file).getName())) {
+        filesToStage.add(file);
+      }
+    }
 
     // TODO: Migrate this logic else where.
     try {
-      filesToStage = replaceDirectoriesWithZipFiles(options.getFilesToStage());
+      filesToStage = replaceDirectoriesWithZipFiles(filesToStage);
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
@@ -206,29 +205,8 @@ public class PortableRunner extends PipelineRunner<PipelineResult> {
   }
 
   private List<PTransformOverride> getOverrides(boolean streaming) {
-    ImmutableList.Builder<PTransformOverride> overridesBuilder = ImmutableList.builder();
-    overridesBuilder.add(
-        PTransformOverride.of(
-            PTransformMatchers.classEqualTo(Read.Bounded.class),
-            new FnApiBoundedReadOverrideFactory()));
-    return overridesBuilder.build();
-  }
-
-  private static class FnApiBoundedReadOverrideFactory<T>
-      implements PTransformOverrideFactory<PBegin, PCollection<T>, Bounded<T>> {
-    @Override
-    public PTransformReplacement<PBegin, PCollection<T>> getReplacementTransform(
-        AppliedPTransform<PBegin, PCollection<T>, Bounded<T>> transform) {
-      return PTransformReplacement.of(
-          transform.getPipeline().begin(),
-          JavaReadViaImpulse.bounded(transform.getTransform().getSource()));
-    }
-
-    @Override
-    public Map<PValue, ReplacementOutput> mapOutputs(
-        Map<TupleTag<?>, PValue> outputs, PCollection<T> newOutput) {
-      return ReplacementOutputs.singleton(outputs, newOutput);
-    }
+    return ImmutableList.of(
+        JavaReadViaImpulse.boundedOverride());
   }
 
   @Override

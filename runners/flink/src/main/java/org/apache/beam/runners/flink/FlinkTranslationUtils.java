@@ -28,7 +28,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 public class FlinkTranslationUtils {
 
   /** Indicates whether the given pipeline has any unbounded PCollections. */
-  public static boolean hasUnboundedPCollecctions(RunnerApi.Pipeline pipeline) {
+  public static boolean hasUnboundedPCollections(RunnerApi.Pipeline pipeline) {
     checkArgument(pipeline != null);
     Collection<RunnerApi.PCollection> pCollecctions = pipeline.getComponents()
         .getPcollectionsMap().values();
