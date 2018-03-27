@@ -21,7 +21,11 @@ import static org.apache.beam.runners.core.construction.PipelineResources.detect
 
 import io.grpc.ManagedChannel;
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.nio.channels.Channels;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.apache.beam.model.jobmanagement.v1.JobApi.PrepareJobRequest;
@@ -41,6 +45,7 @@ import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.fn.channel.ManagedChannelFactory;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.util.ZipFiles;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -84,12 +89,37 @@ public class PortableRunner extends PipelineRunner<PipelineResult> {
     this.options = options;
   }
 
+  private List<String> replaceDirectoriesWithZipFiles(List<String> paths) throws IOException {
+    List<String> results = new ArrayList<String>();
+    for (String path : paths) {
+      File file = new File(path);
+      if (file.isDirectory()) {
+        File zipFile = File.createTempFile(file.getName(), ".zip");
+        try (FileOutputStream fos = new FileOutputStream(zipFile)) {
+          ZipFiles.zipDirectory(file, fos);
+        }
+        results.add(zipFile.getAbsolutePath());
+      } else {
+        results.add(path);
+      }
+    }
+    return results;
+  }
+
   @Override
   public PipelineResult run(Pipeline pipeline) {
+    LOG.info("Initial files to stage: " + options.getFilesToStage());
 
-    List<String> filesToStage = options.getFilesToStage();
+    // TODO: Remove duplicates else where.
+    List<String> filesToStage = new ArrayList<>(new LinkedHashSet<>());
 
-    System.out.println("File to stage: " + filesToStage);
+    // TODO: Migrate this logic else where.
+    try {
+      filesToStage = replaceDirectoriesWithZipFiles(filesToStage);
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+
 
     PrepareJobRequest prepareJobRequest = PrepareJobRequest.newBuilder()
         .setJobName(options.getJobName())
@@ -115,6 +145,7 @@ public class PortableRunner extends PipelineRunner<PipelineResult> {
 
     String stagingToken;
     try {
+      LOG.info("Actual files staged %s", filesToStage);
       stagingToken =
           stager.stage(filesToStage.stream().map(File::new).collect(Collectors.toList()));
     } catch (IOException e) {
