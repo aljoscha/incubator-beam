@@ -47,6 +47,7 @@ import org.apache.beam.sdk.state.ReadableState;
 import org.apache.beam.sdk.state.SetState;
 import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.state.WatermarkHoldState;
+import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.CombineWithContext;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -78,6 +79,10 @@ public abstract class StateInternalsTest {
       SUM_INTEGER_CONTEXT_ADDR =
           StateTags.combiningValueWithContext(
               "sumIntegerWithContext", VarIntCoder.of(), new SummingContextFn());
+  private static final StateTag<CombiningState<Integer, Integer, Integer>>
+      SUM_INTEGER_NULLABLE_ADDR =
+          StateTags.combiningValueFromInputInternal(
+              "sumNullableInteger", VarIntCoder.of(), new SummingFnWithNullableAccum());
   private static final StateTag<BagState<String>> STRING_BAG_ADDR =
       StateTags.bag("stringBag", StringUtf8Coder.of());
   private static final StateTag<SetState<String>> STRING_SET_ADDR =
@@ -433,6 +438,21 @@ public abstract class StateInternalsTest {
   }
 
   @Test
+  public void testCombiningWithNullableAccum() throws Exception {
+    GroupingState<Integer, Integer> value = underTest.state(NAMESPACE_1, SUM_INTEGER_NULLABLE_ADDR);
+
+    // if you uncomment this one the test already fails for all state backends that subclass
+    // StateInternalsTest
+    //    assertThat(value.read(), Matchers.nullValue());
+    value.add(2);
+    assertThat(value.read(), equalTo(2));
+
+    // this should set the Accumulator state to null, see SummingFnWithNullableAccum.addInput()
+    value.add(null);
+    assertThat(value.read(), Matchers.nullValue());
+  }
+
+  @Test
   public void testMergeCombiningValueIntoSource() throws Exception {
     CombiningState<Integer, int[], Integer> value1 = underTest.state(NAMESPACE_1, SUM_INTEGER_ADDR);
     CombiningState<Integer, int[], Integer> value2 = underTest.state(NAMESPACE_2, SUM_INTEGER_ADDR);
@@ -683,6 +703,45 @@ public abstract class StateInternalsTest {
     @Override
     public int hashCode() {
       return super.hashCode();
+    }
+  }
+
+  private static class SummingFnWithNullableAccum
+      extends Combine.CombineFn<Integer, Integer, Integer> {
+
+    @Override
+    public Integer createAccumulator() {
+      return 0;
+    }
+
+    @Override
+    public Integer addInput(Integer accumulator, Integer input) {
+      if (accumulator == null) {
+        // we're not adding anything anymore because we're in our "final" state
+        return null;
+      }
+      if (input == null) {
+        // adding a null sets the accumulator to null, to mark it as "final"
+        return null;
+      }
+      return accumulator + input;
+    }
+
+    @Override
+    public Integer mergeAccumulators(Iterable<Integer> accumulators) {
+      if (Iterables.isEmpty(accumulators)) {
+        return null;
+      }
+      int sum = createAccumulator();
+      for (Integer accumulator : accumulators) {
+        sum += accumulator;
+      }
+      return sum;
+    }
+
+    @Override
+    public Integer extractOutput(Integer accumulator) {
+      return accumulator;
     }
   }
 
