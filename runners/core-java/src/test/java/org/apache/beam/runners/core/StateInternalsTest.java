@@ -729,17 +729,19 @@ public abstract class StateInternalsTest {
 
     @Override
     public Integer mergeAccumulators(Iterable<Integer> accumulators) {
-      if (Iterables.isEmpty(accumulators)) {
-        return null;
-      }
-      int sum = createAccumulator();
+      // start out with the empty state
+      Integer result = null;
       for (Integer accumulator : accumulators) {
         if (accumulator == null) {
           continue;
         }
-        sum += accumulator;
+        if (result == null) {
+          result = accumulator;
+        } else {
+          result += accumulator;
+        }
       }
-      return sum;
+      return result;
     }
 
     @Override
