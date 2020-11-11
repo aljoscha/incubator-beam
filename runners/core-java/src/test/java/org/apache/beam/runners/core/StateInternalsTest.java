@@ -734,6 +734,9 @@ public abstract class StateInternalsTest {
       }
       int sum = createAccumulator();
       for (Integer accumulator : accumulators) {
+        if (accumulator == null) {
+          continue;
+        }
         sum += accumulator;
       }
       return sum;
